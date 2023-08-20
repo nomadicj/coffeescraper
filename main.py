@@ -91,36 +91,22 @@ def scrape_regions(country_page_url: str):
     return region_dict
 
 
-def push_to_csv(csv_filename: str, field_names: list, roasters: dict):
-    """ 
-    Creates a pandas dataframe from a dictionary and column names
-    and writes them to a file.
-    
-    Parameters
-    ----------
-    csv_filename: str
-        The name of the file to be written to
-    field_names: list
-        The column header names
-    roasters: dict
-        The dictionary from which the dataframe is to be created
-
-    """
-
-    df = pd.DataFrame(list(roasters.items()), columns=field_names)
-
-    df.to_csv(csv_filename)
-
-
 if __name__ == "__main__":
     """
+    Script to scrape roasters for a given country from a website 
+    that maintains this data but does not give data access
     
+    Outputs
+    -------
+    A CSV that contains all roasters by name, their website URL and region
     """
     
     roasters = {}
     country_roaster_url = "https://coffeebeaned.com/coffee-roaster-list/"
     csv_filename = "roasters.csv"
-    field_names = ['Roaster Name', 'Roaster URL']
+    field_names = ['Roaster Name', 'Roaster URL', 'Region Code']
+
+    df = pd.DataFrame()
 
     regions = scrape_regions(country_roaster_url)
 
@@ -128,10 +114,10 @@ if __name__ == "__main__":
         region_code, region_url = region
         regional_roasters = scrape_roasters(region_code, region_url)
 
-        for regional_roaster in regional_roasters.items():
-            regional_roaster_name, regional_roaster_url = regional_roaster
-            roasters[regional_roaster_name] = regional_roaster_url
+        df_region = pd.DataFrame(list(regional_roasters.items()), columns=('Roaster Name', 'Roaster URL'))
+        df_region['Region Code'] = region_code
 
-    push_to_csv(csv_filename, field_names, roasters)
-
+        df = pd.concat([df, df_region])
+                                 
+    df.to_csv(csv_filename)
 
