@@ -151,7 +151,7 @@ def get_region(region_code: str):
         df_region["Roaster Address"] = get_addresses(region_code, regional_roasters.keys())
         df_region['Region Code'] = region_code
 
-        df_region.to_csv(f'{csv_filename}.{region_code}.csv')
+        df_region.to_csv(f'output/{csv_filename}.{region_code}.csv')
     except KeyError as key_error:
         print(f"Region not found: {key_error}")
         print(f"Try one of these:\n{list(regions.keys())}")
@@ -175,11 +175,11 @@ def get_all_regions():
         df_region["Roaster Address"] = get_addresses(region_code, regional_roasters.keys())
         df_region['Region Code'] = region_code
 
-    df_region.to_csv(f'{csv_filename}.{region_code}.csv')
+    df_region.to_csv(f'output/{csv_filename}.{region_code}.csv')
 
     df = pd.concat([df, df_region])    
                                  
-    df.to_csv(f'{csv_filename}.csv')
+    df.to_csv(f'output/{csv_filename}.csv')
 
 if __name__ == "__main__":
     """
