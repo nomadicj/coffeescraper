@@ -6,10 +6,18 @@ import re
 import pandas as pd
 import googlemaps
 from progress.bar import Bar
+import typer
 
 load_dotenv()
+app = typer.Typer()
 
-def scrape_roasters(region_code: str, region_page_url: str):
+"""
+Instantiate Global Vars
+"""
+country_roaster_url = "https://coffeebeaned.com/coffee-roaster-list/"
+csv_filename = "roasters"
+
+def get_roasters(region_code: str, region_page_url: str) -> dict:
     """
     Given a page, scrapes and returns the roasters on that page.
     
@@ -46,7 +54,7 @@ def scrape_roasters(region_code: str, region_page_url: str):
         except:
             pass
 
-    #print(roaster_dict.items())
+    #print(f'Found {len(roaster_dict)} roasters in {region_code}.')
 
     return(roaster_dict)
 
@@ -115,7 +123,63 @@ def get_zip_code(business_address: str):
         return candidates[0].get("formatted_address")
     except IndexError:
         return None
+
+def get_addresses(region_code: str, regional_roasters: list) -> list:
+    """
+    Get roaster address from Google Places API
+    """
+    addresses = []
+    with Bar(region_code, max=len(regional_roasters)) as bar:
+        for roaster in regional_roasters:
+            addresses.append(get_address(f'{roaster}, {region_code}, USA'))
+            bar.next()
+
+    return addresses
     
+@app.command()
+def get_region(region_code: str):
+    """
+    Get single region data
+    """
+    df_region = pd.DataFrame()
+
+    regions = scrape_regions(country_roaster_url)
+    try:
+        region_url = regions[region_code]
+        regional_roasters = get_roasters(region_code, region_url)
+        df_region = pd.DataFrame(list(regional_roasters.items()), columns=('Roaster Name', 'Roaster URL'))
+        df_region["Roaster Address"] = get_addresses(region_code, regional_roasters.keys())
+        df_region['Region Code'] = region_code
+
+        df_region.to_csv(f'{csv_filename}.{region_code}.csv')
+    except KeyError as key_error:
+        print(f"Region not found: {key_error}")
+        print(f"Try one of these:\n{list(regions.keys())}")
+    except Exception as error:
+        print(error)
+    
+@app.command()
+def get_all_regions():
+    """
+    
+    """
+    df = pd.DataFrame()
+    df_region = pd.DataFrame()
+
+    regions = scrape_regions(country_roaster_url)
+    for region in regions.items():
+        region_code, region_url = region
+
+        regional_roasters = get_roasters(region_code, region_url)
+        df_region = pd.DataFrame(list(regional_roasters.items()), columns=('Roaster Name', 'Roaster URL'))
+        df_region["Roaster Address"] = get_addresses(region_code, regional_roasters.keys())
+        df_region['Region Code'] = region_code
+
+    df_region.to_csv(f'{csv_filename}.{region_code}.csv')
+
+    df = pd.concat([df, df_region])    
+                                 
+    df.to_csv(f'{csv_filename}.csv')
 
 if __name__ == "__main__":
     """
@@ -126,35 +190,4 @@ if __name__ == "__main__":
     -------
     A CSV that contains all roasters by name, their website URL and region
     """
-    
-    roasters = {}
-    country_roaster_url = "https://coffeebeaned.com/coffee-roaster-list/"
-    csv_filename = "roasters"
-    field_names = ['Roaster Name', 'Roaster URL', 'Region Code']
-
-    df = pd.DataFrame()
-
-    regions = scrape_regions(country_roaster_url)
-
-    for region in regions.items():
-        region_code, region_url = region
-        regional_roasters = scrape_roasters(region_code, region_url)
-
-        addresses = []
-
-        with Bar(region_code, max=len(regional_roasters)) as bar:
-            for roaster in regional_roasters.keys():
-                #roaster_address[roaster] = get_address(roaster)
-                addresses.append(get_address(f'{roaster}, {region_code}, USA'))
-                bar.next()
-
-        df_region = pd.DataFrame(list(regional_roasters.items()), columns=('Roaster Name', 'Roaster URL'))
-        df_region["Roaster Address"] = addresses
-        df_region['Region Code'] = region_code
-
-        df_region.to_csv(f'{csv_filename}.{region_code}.csv')
-
-        df = pd.concat([df, df_region])    
-                                 
-        df.to_csv(f'{csv_filename}.csv')
-
+    app()
