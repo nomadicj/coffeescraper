@@ -1,9 +1,13 @@
 import requests
+from dotenv import load_dotenv
+import os
 from bs4 import BeautifulSoup
 import re
 import pandas as pd
+import googlemaps
+from progress.bar import Bar
 
-
+load_dotenv()
 
 def scrape_roasters(region_code: str, region_page_url: str):
     """
@@ -28,8 +32,6 @@ def scrape_roasters(region_code: str, region_page_url: str):
 
     roaster_dict = {}
 
-    print(f'Processing {region_code}.')
-
     region_page = requests.get(region_page_url)
 
     soup = BeautifulSoup(region_page.content, "html.parser")
@@ -45,8 +47,6 @@ def scrape_roasters(region_code: str, region_page_url: str):
             pass
 
     #print(roaster_dict.items())
-
-    print(f'Found {len(roaster_dict)} roasters in {region_code}.')
 
     return(roaster_dict)
 
@@ -90,6 +90,32 @@ def scrape_regions(country_page_url: str):
 
     return region_dict
 
+def get_address(business_name: str):
+    """
+
+    """
+
+    google_maps_key = os.getenv("GOOGLEAPIKEY")
+
+    gm = googlemaps.Client(key=google_maps_key)
+    try:
+        candidates, status = gm.find_place(business_name, "textquery", fields=["formatted_address", "geometry"]).values()
+        return candidates[0].get("formatted_address")
+    except googlemaps.exceptions.HTTPError:
+        return None
+    except IndexError:
+        return None
+
+def get_zip_code(business_address: str):
+    """
+
+    """
+
+    try:
+        return candidates[0].get("formatted_address")
+    except IndexError:
+        return None
+    
 
 if __name__ == "__main__":
     """
@@ -103,7 +129,7 @@ if __name__ == "__main__":
     
     roasters = {}
     country_roaster_url = "https://coffeebeaned.com/coffee-roaster-list/"
-    csv_filename = "roasters.csv"
+    csv_filename = "roasters"
     field_names = ['Roaster Name', 'Roaster URL', 'Region Code']
 
     df = pd.DataFrame()
@@ -114,10 +140,21 @@ if __name__ == "__main__":
         region_code, region_url = region
         regional_roasters = scrape_roasters(region_code, region_url)
 
+        addresses = []
+
+        with Bar(region_code, max=len(regional_roasters)) as bar:
+            for roaster in regional_roasters.keys():
+                #roaster_address[roaster] = get_address(roaster)
+                addresses.append(get_address(f'{roaster}, {region_code}, USA'))
+                bar.next()
+
         df_region = pd.DataFrame(list(regional_roasters.items()), columns=('Roaster Name', 'Roaster URL'))
+        df_region["Roaster Address"] = addresses
         df_region['Region Code'] = region_code
 
-        df = pd.concat([df, df_region])
+        df_region.to_csv(f'{csv_filename}.{region_code}.csv')
+
+        df = pd.concat([df, df_region])    
                                  
-    df.to_csv(csv_filename)
+        df.to_csv(f'{csv_filename}.csv')
 
