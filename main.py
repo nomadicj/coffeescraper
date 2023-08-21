@@ -175,9 +175,9 @@ def get_all_regions():
         df_region["Roaster Address"] = get_addresses(region_code, regional_roasters.keys())
         df_region['Region Code'] = region_code
 
-    df_region.to_csv(f'output/{csv_filename}.{region_code}.csv')
+        df_region.to_csv(f'output/{csv_filename}.{region_code}.csv')
 
-    df = pd.concat([df, df_region])    
+        df = pd.concat([df, df_region])    
                                  
     df.to_csv(f'output/{csv_filename}.csv')
 
